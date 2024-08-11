@@ -21,7 +21,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version-file: pyproject.toml # Read python version from a file pyproject.toml
-          cache: poetry # caching poetry dependencies
 
       - name: Cache Poetry binary
         uses: actions/cache@v4
@@ -37,6 +36,19 @@ jobs:
           "${POETRY_HOME}/bin/poetry" --version
 
           echo "${POETRY_HOME}/bin/" >> "${GITHUB_PATH}"
+
+      # Poetry cache depends on OS, Python version and Poetry version.
+      - name: Cache Poetry cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: poetry-cache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ env.POETRY_VERSION }}
+      # virtualenv cache should depends on OS, Python version and `poetry.lock` (and optionally workflow files).
+      - name: Cache Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.local
+          key: poetry-local-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('.github/workflows/*.yml') }}
 
       - name: Install dependencies with Poetry
         run: |
