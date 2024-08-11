@@ -61,3 +61,15 @@ jobs:
           poetry install
       - name: List dependencies
         run: poetry show
+
+      - name: Cache Ansible Galaxy resources
+        id: ansible_galaxy_cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ansible
+          key: ansible-galaxy-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('**/ansible-requirements.yml') }}-${{ hashFiles('.github/workflows/*.yml') }}
+      - name: Install Ansible requirements
+        if: ${{ (steps.poetry_cache.outputs.cache-hit != 'true') || steps.ansible_galaxy_cache.outputs.cache-hit != 'true' }}
+        run: poetry run ansible-galaxy collection install -r ansible-requirements.yml
+      - name: List Ansible collections
+        run: poetry run ansible-galaxy collection list
