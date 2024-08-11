@@ -23,34 +23,40 @@ jobs:
           python-version-file: pyproject.toml # Read python version from a file pyproject.toml
 
       - name: Cache Poetry binary
+        id: poetry_binary_cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/poetry-${{ env.POETRY_VERSION }}
           key: poetry-binary-cache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ env.POETRY_VERSION }}
       - name: Install Poetry ${{ env.POETRY_VERSION }}
+        if: ${{ steps.poetry_binary_cache.outputs.cache-hit != 'true' }}
         run: |
           export POETRY_HOME="${HOME}/.cache/poetry-${POETRY_VERSION}"
           python3 -m venv "${POETRY_HOME}"
           "${POETRY_HOME}/bin/pip" install "poetry==${POETRY_VERSION}"
-
+          "${POETRY_HOME}/bin/poetry" --version
+      - name: Add Poetry to the PATH
+        run: |
+          export POETRY_HOME="${HOME}/.cache/poetry-${POETRY_VERSION}"
+          echo "${POETRY_HOME}/bin/" >> "${GITHUB_PATH}"
           "${POETRY_HOME}/bin/poetry" --version
 
-          echo "${POETRY_HOME}/bin/" >> "${GITHUB_PATH}"
-
       # Poetry cache depends on OS, Python version and Poetry version.
-      - name: Cache Poetry cache
+      - name: Cache Poetry
+        id: poetry_cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/pypoetry
           key: poetry-cache-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ env.POETRY_VERSION }}
       # virtualenv cache should depends on OS, Python version and `poetry.lock` (and optionally workflow files).
       - name: Cache Packages
+        id: packages_cache
         uses: actions/cache@v4
         with:
           path: ~/.local
           key: poetry-local-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}-${{ hashFiles('.github/workflows/*.yml') }}
-
       - name: Install dependencies with Poetry
+        if: ${{ (steps.poetry_cache.outputs.cache-hit != 'true') || (steps.packages_cache.outputs.cache-hit != 'true') }}
         run: |
           poetry install
       - name: List dependencies
